@@ -128,7 +128,3 @@ tramp
 Session.vim
 .netrwhist
 
-# Project specific
-random-pod-killer
-killer
-main
