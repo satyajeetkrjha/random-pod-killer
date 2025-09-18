@@ -7,6 +7,7 @@ import (
 	"time"
 
 	K8s "github.com/satyajeetkrjha/random-pod-killer/pkg/k8s"
+	killer "github.com/satyajeetkrjha/random-pod-killer/pkg/killer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,5 +48,14 @@ func main() {
 	for _, pod := range pods.Items {
 		log.Printf("Pod Name: %s, Status: %s", pod.Name, pod.Status.Phase)
 	}
+
+	log.Println("Pod listing completed successfully")
+
+	// List eligible pods based on the provided selector
+	eligiblePods, err := killer.ListEligiblePods(clientset, *namespace, *selector, ctx)
+	if err != nil {
+		log.Fatalf("Failed to list eligible pods: %v", err)
+	}
+	log.Printf(" Total Eligible pods: %+v", len(eligiblePods))
 
 }

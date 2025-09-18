@@ -2,6 +2,7 @@ package killer
 
 import (
 	"context"
+	"log"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,5 +17,12 @@ func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSe
 	if err != nil {
 		return nil, err
 	}
-	return pods.Items, nil
+	var runningPods []v1.Pod
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			runningPods = append(runningPods, pod)
+		}
+	}
+	log.Printf("Found %d eligible pods in namespace %s with selector %s", len(runningPods), namespace, labelSelector)
+	return runningPods, nil
 }
