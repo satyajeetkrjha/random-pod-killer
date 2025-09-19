@@ -54,8 +54,66 @@ func main() {
 	// List eligible pods based on the provided selector
 	eligiblePods, err := killer.ListEligiblePods(clientset, *namespace, *selector, ctx)
 	if err != nil {
-		log.Fatalf("Failed to list eligible pods: %v", err)
+		log.Printf("Failed to list eligible pods: %v", err)
 	}
 	log.Printf(" Total Eligible pods: %+v", len(eligiblePods))
+
+	// If there are eligible pods, select one at random and delete it
+	if len(eligiblePods) > 0 {
+		podToDelete := killer.SelectRandomPod(eligiblePods)
+		log.Printf("Selected pod %s for deletion", podToDelete.Name)
+
+		// Kill the selected pod
+		err = killer.KillPod(clientset, podToDelete, ctx)
+		if err != nil {
+			log.Fatalf("Failed to kill pod: %v", err)
+		}
+
+		// Wait a moment for the deletion to take effect
+		time.Sleep(2 * time.Second)
+
+		// List pods again to show the updated count
+		log.Println("Listing pods after deletion...")
+		podsAfter, err := clientset.CoreV1().Pods(*namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			log.Printf("Failed to list pods after deletion: %v", err)
+		} else {
+			log.Printf("Found %d pods in namespace %s after deletion", len(podsAfter.Items), *namespace)
+
+			// Check if the deleted pod still exists
+			deletedPodExists := false
+			var newPods []string
+
+			for _, pod := range podsAfter.Items {
+				if pod.Name == podToDelete.Name {
+					log.Printf("Original pod %s still exists with status: %s", pod.Name, pod.Status.Phase)
+					deletedPodExists = true
+				} else {
+					// Check if this is a new pod (not in original list)
+					isNew := true
+					for _, originalPod := range pods.Items {
+						if originalPod.Name == pod.Name {
+							isNew = false
+							break
+						}
+					}
+					if isNew {
+						newPods = append(newPods, pod.Name)
+					}
+				}
+			}
+
+			if !deletedPodExists {
+				log.Printf("✓ Pod %s was successfully deleted", podToDelete.Name)
+			}
+
+			if len(newPods) > 0 {
+				log.Printf("🔄 New pods created by Kubernetes: %v", newPods)
+				log.Println("ℹ️  Pod count remains the same because Kubernetes recreated the deleted pod to maintain desired replica count")
+			}
+		}
+	} else {
+		log.Println("No eligible pods found to delete")
+	}
 
 }
