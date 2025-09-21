@@ -58,36 +58,36 @@ func main() {
 	}
 	log.Printf(" Total Eligible pods: %+v", len(eligiblePods))
 
-	// If there are eligible pods, select one at random and delete it
+	// If there are eligible pods, select one at random and evict it
 	if len(eligiblePods) > 0 {
-		podToDelete := killer.SelectRandomPod(eligiblePods)
-		log.Printf("Selected pod %s for deletion", podToDelete.Name)
+		podToEvict := killer.SelectRandomPod(eligiblePods)
+		log.Printf("Selected pod %s for eviction", podToEvict.Name)
 
-		// Kill the selected pod
-		err = killer.KillPod(clientset, podToDelete, ctx)
+		// Evict the selected pod
+		err = killer.EvictPod(clientset, podToEvict, ctx)
 		if err != nil {
-			log.Fatalf("Failed to kill pod: %v", err)
+			log.Fatalf("Failed to evict pod: %v", err)
 		}
 
-		// Wait a moment for the deletion to take effect
+		// Wait a moment for the eviction to take effect
 		time.Sleep(2 * time.Second)
 
 		// List pods again to show the updated count
-		log.Println("Listing pods after deletion...")
+		log.Println("Listing pods after eviction...")
 		podsAfter, err := clientset.CoreV1().Pods(*namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
-			log.Printf("Failed to list pods after deletion: %v", err)
+			log.Printf("Failed to list pods after eviction: %v", err)
 		} else {
-			log.Printf("Found %d pods in namespace %s after deletion", len(podsAfter.Items), *namespace)
+			log.Printf("Found %d pods in namespace %s after eviction", len(podsAfter.Items), *namespace)
 
-			// Check if the deleted pod still exists
-			deletedPodExists := false
+			// Check if the evicted pod still exists
+			evictedPodExists := false
 			var newPods []string
 
 			for _, pod := range podsAfter.Items {
-				if pod.Name == podToDelete.Name {
+				if pod.Name == podToEvict.Name {
 					log.Printf("Original pod %s still exists with status: %s", pod.Name, pod.Status.Phase)
-					deletedPodExists = true
+					evictedPodExists = true
 				} else {
 					// Check if this is a new pod (not in original list)
 					isNew := true
@@ -103,17 +103,17 @@ func main() {
 				}
 			}
 
-			if !deletedPodExists {
-				log.Printf("✓ Pod %s was successfully deleted", podToDelete.Name)
+			if !evictedPodExists {
+				log.Printf("✓ Pod %s was successfully evicted", podToEvict.Name)
 			}
 
 			if len(newPods) > 0 {
 				log.Printf("🔄 New pods created by Kubernetes: %v", newPods)
-				log.Println("ℹ️  Pod count remains the same because Kubernetes recreated the deleted pod to maintain desired replica count")
+				log.Println("ℹ️  Pod count remains the same because Kubernetes recreated the evicted pod to maintain desired replica count")
 			}
 		}
 	} else {
-		log.Println("No eligible pods found to delete")
+		log.Println("No eligible pods found to evict")
 	}
 
 }
