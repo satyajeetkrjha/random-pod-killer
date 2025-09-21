@@ -52,7 +52,7 @@ func main() {
 	log.Println("Pod listing completed successfully")
 
 	// List PDB-safe pods that can be evicted without violating PodDisruptionBudgets
-	log.Println("🛡️  Checking PodDisruptionBudgets before selecting pods for eviction...")
+	log.Println("Checking PodDisruptionBudgets before selecting pods for eviction...")
 	pdbSafePods, err := killer.ListPDBSafePods(clientset, *namespace, *selector, ctx)
 	if err != nil {
 		log.Fatalf("Failed to list PDB-safe pods: %v", err)
@@ -62,7 +62,7 @@ func main() {
 	// If there are PDB-safe pods, select one at random and evict it
 	if len(pdbSafePods) > 0 {
 		podToEvict := killer.SelectRandomPod(pdbSafePods)
-		log.Printf("✅ Selected pod %s for eviction (PDB-compliant)", podToEvict.Name)
+		log.Printf("Selected pod %s for eviction (PDB-compliant)", podToEvict.Name)
 
 		// Evict the selected pod
 		err = killer.EvictPod(clientset, podToEvict, ctx)
@@ -105,17 +105,17 @@ func main() {
 			}
 
 			if !evictedPodExists {
-				log.Printf("✓ Pod %s was successfully evicted", podToEvict.Name)
+				log.Printf("Pod %s was successfully evicted", podToEvict.Name)
 			}
 
 			if len(newPods) > 0 {
-				log.Printf("🔄 New pods created by Kubernetes: %v", newPods)
-				log.Println("ℹ️  Pod count remains the same because Kubernetes recreated the evicted pod to maintain desired replica count")
+				log.Printf("New pods created by Kubernetes: %v", newPods)
+				log.Println("Pod count remains the same because Kubernetes recreated the evicted pod to maintain desired replica count")
 			}
 		}
 	} else {
-		log.Println("❌ No PDB-safe pods found for eviction")
-		log.Println("ℹ️  This could mean:")
+		log.Println("No PDB-safe pods found for eviction")
+		log.Println("This could mean:")
 		log.Println("   - No pods match the label selector")
 		log.Println("   - All matching pods are protected by PodDisruptionBudgets")
 		log.Println("   - PDB constraints prevent any evictions at this time")

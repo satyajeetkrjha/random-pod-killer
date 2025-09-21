@@ -132,28 +132,28 @@ func CanEvictPod(pod *v1.Pod, pdbs []policyv1.PodDisruptionBudget, allPods []v1.
 	applicablePDBs := GetPDBsForPod(pod, pdbs)
 
 	if len(applicablePDBs) == 0 {
-		log.Printf("✅ Pod %s has no PDB protection - eviction allowed", pod.Name)
+		log.Printf("Pod %s has no PDB protection - eviction allowed", pod.Name)
 		return true, "No PDB protection"
 	}
 
 	for _, pdb := range applicablePDBs {
 		pdbInfo, err := CalculatePDBStatus(&pdb, allPods)
 		if err != nil {
-			log.Printf("❌ Error calculating PDB status for %s: %v", pdb.Name, err)
+			log.Printf("Error calculating PDB status for %s: %v", pdb.Name, err)
 			return false, fmt.Sprintf("Error calculating PDB status: %v", err)
 		}
 
-		log.Printf("📊 PDB %s status: CurrentHealthy=%d, DesiredHealthy=%d, AllowedDisruptions=%d",
+		log.Printf("PDB %s status: CurrentHealthy=%d, DesiredHealthy=%d, AllowedDisruptions=%d",
 			pdb.Name, pdbInfo.CurrentHealthy, pdbInfo.DesiredHealthy, pdbInfo.AllowedDisruptions)
 
 		if pdbInfo.AllowedDisruptions <= 0 {
 			reason := fmt.Sprintf("PDB %s would be violated (CurrentHealthy=%d, DesiredHealthy=%d, AllowedDisruptions=%d)",
 				pdb.Name, pdbInfo.CurrentHealthy, pdbInfo.DesiredHealthy, pdbInfo.AllowedDisruptions)
-			log.Printf("❌ Pod %s eviction blocked: %s", pod.Name, reason)
+			log.Printf("Pod %s eviction blocked: %s", pod.Name, reason)
 			return false, reason
 		}
 	}
 
-	log.Printf("✅ Pod %s can be safely evicted (all PDBs allow disruption)", pod.Name)
+	log.Printf("Pod %s can be safely evicted (all PDBs allow disruption)", pod.Name)
 	return true, "All PDBs allow disruption"
 }

@@ -70,7 +70,7 @@ func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSe
 		if pod.Status.Phase == v1.PodRunning {
 			// Check if pod is protected (DaemonSet or system namespace)
 			if isProtected, reason := isProtectedPod(&pod); isProtected {
-				log.Printf("🚫 Skipping protected pod %s: %s", pod.Name, reason)
+				log.Printf("Skipping protected pod %s: %s", pod.Name, reason)
 				protectedCount++
 				continue
 			}
@@ -80,7 +80,7 @@ func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSe
 
 	log.Printf("Found %d eligible pods in namespace %s with selector %s", len(runningPods), namespace, labelSelector)
 	if protectedCount > 0 {
-		log.Printf("🛡️  DaemonSet/System protection: Filtered out %d protected pods", protectedCount)
+		log.Printf("DaemonSet/System protection: Filtered out %d protected pods", protectedCount)
 	}
 
 	return runningPods, nil
@@ -126,7 +126,7 @@ func ListPDBSafePods(clientset *kubernetes.Clientset, namespace string, labelSel
 		if canEvict {
 			safePods = append(safePods, pod)
 		} else {
-			log.Printf("🛡️  Pod %s cannot be evicted: %s", pod.Name, reason)
+			log.Printf("Pod %s cannot be evicted: %s", pod.Name, reason)
 		}
 	}
 
