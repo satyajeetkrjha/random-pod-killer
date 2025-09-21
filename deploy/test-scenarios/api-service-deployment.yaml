@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-service
+  namespace: default
+  labels:
+    app: api-service
+    tier: backend
+    pdb-test: max-unavailable
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-service
+  template:
+    metadata:
+      labels:
+        app: api-service
+        tier: backend
+        pdb-test: max-unavailable
+        version: v2.1
+    spec:
+      containers:
+      - name: api-server
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 300m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 20
+          periodSeconds: 30
+        env:
+        - name: SERVICE_NAME
+          value: "api-service"
+        - name: ENVIRONMENT
+          value: "test"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: MAX_CONNECTIONS
+          value: "100"

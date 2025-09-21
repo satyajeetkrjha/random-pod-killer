@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-app-pdb
+  namespace: default
+  labels:
+    app: web-app
+    tier: frontend
+    pdb-test: min-available
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: web-app

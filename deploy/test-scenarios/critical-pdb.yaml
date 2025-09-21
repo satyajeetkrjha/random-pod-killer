@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: critical-service-pdb
+  namespace: default
+  labels:
+    app: critical-service
+    tier: critical
+    pdb-test: strict-pdb
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: critical-service

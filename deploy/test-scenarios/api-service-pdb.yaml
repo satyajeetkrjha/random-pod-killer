@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-service-pdb
+  namespace: default
+  labels:
+    app: api-service
+    tier: backend
+    pdb-test: max-unavailable
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: api-service

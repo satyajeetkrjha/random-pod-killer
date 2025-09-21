@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: critical-service
+  namespace: default
+  labels:
+    app: critical-service
+    tier: critical
+    pdb-test: strict-pdb
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: critical-service
+  template:
+    metadata:
+      labels:
+        app: critical-service
+        tier: critical
+        pdb-test: strict-pdb
+        version: v3.0
+        criticality: high
+    spec:
+      containers:
+      - name: critical-app
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        env:
+        - name: SERVICE_NAME
+          value: "critical-service"
+        - name: ENVIRONMENT
+          value: "test"
+        - name: REDIS_MAXMEMORY
+          value: "512mb"
+        - name: REDIS_MAXMEMORY_POLICY
+          value: "allkeys-lru"
+      - name: health-monitor
+        image: busybox:1.35
+        command: ['sh', '-c', 'while true; do echo "$(date): Critical service health check OK"; sleep 30; done']
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - critical-service
+              topologyKey: kubernetes.io/hostname
