@@ -12,6 +12,48 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// isDaemonSetPod checks if a pod is managed by a DaemonSet
+func isDaemonSetPod(pod *v1.Pod) bool {
+	for _, owner := range pod.OwnerReferences {
+		if owner.Kind == "DaemonSet" {
+			return true
+		}
+	}
+	return false
+}
+
+// isSystemNamespace checks if a namespace is a system namespace that should be protected
+func isSystemNamespace(namespace string) bool {
+	systemNamespaces := []string{
+		"kube-system",
+		"kube-public",
+		"kube-node-lease",
+		"kubernetes-dashboard",
+	}
+
+	for _, sysNs := range systemNamespaces {
+		if namespace == sysNs {
+			return true
+		}
+	}
+	return false
+}
+
+// isProtectedPod checks if a pod should be protected from eviction (DaemonSet or system namespace)
+func isProtectedPod(pod *v1.Pod) (bool, string) {
+	// Check if it's a DaemonSet pod
+	if isDaemonSetPod(pod) {
+		return true, "DaemonSet pod"
+	}
+
+	// Check if it's in a system namespace
+	if isSystemNamespace(pod.Namespace) {
+		return true, "System namespace pod"
+	}
+
+	return false, ""
+}
+
 // ListEligiblePods returns pods matching the label selector in the specified namespace
 func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSelector string, ctx context.Context) ([]v1.Pod, error) {
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
@@ -20,13 +62,27 @@ func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSe
 	if err != nil {
 		return nil, err
 	}
+
 	var runningPods []v1.Pod
+	var protectedCount int
+
 	for _, pod := range pods.Items {
 		if pod.Status.Phase == v1.PodRunning {
+			// Check if pod is protected (DaemonSet or system namespace)
+			if isProtected, reason := isProtectedPod(&pod); isProtected {
+				log.Printf("🚫 Skipping protected pod %s: %s", pod.Name, reason)
+				protectedCount++
+				continue
+			}
 			runningPods = append(runningPods, pod)
 		}
 	}
+
 	log.Printf("Found %d eligible pods in namespace %s with selector %s", len(runningPods), namespace, labelSelector)
+	if protectedCount > 0 {
+		log.Printf("🛡️  DaemonSet/System protection: Filtered out %d protected pods", protectedCount)
+	}
+
 	return runningPods, nil
 }
 

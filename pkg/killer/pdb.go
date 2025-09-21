@@ -123,6 +123,12 @@ func CalculatePDBStatus(pdb *policyv1.PodDisruptionBudget, allPods []v1.Pod) (*P
 
 // CanEvictPod checks if a pod can be safely evicted without violating any PDBs
 func CanEvictPod(pod *v1.Pod, pdbs []policyv1.PodDisruptionBudget, allPods []v1.Pod) (bool, string) {
+	// First check if this is a protected pod (DaemonSet or system namespace)
+	// This is a safety double-check in case protected pods somehow made it this far
+	if isProtected, reason := isProtectedPod(pod); isProtected {
+		return false, fmt.Sprintf("Protected pod: %s", reason)
+	}
+
 	applicablePDBs := GetPDBsForPod(pod, pdbs)
 
 	if len(applicablePDBs) == 0 {
