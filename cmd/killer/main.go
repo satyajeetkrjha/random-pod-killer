@@ -51,17 +51,18 @@ func main() {
 
 	log.Println("Pod listing completed successfully")
 
-	// List eligible pods based on the provided selector
-	eligiblePods, err := killer.ListEligiblePods(clientset, *namespace, *selector, ctx)
+	// List PDB-safe pods that can be evicted without violating PodDisruptionBudgets
+	log.Println("🛡️  Checking PodDisruptionBudgets before selecting pods for eviction...")
+	pdbSafePods, err := killer.ListPDBSafePods(clientset, *namespace, *selector, ctx)
 	if err != nil {
-		log.Printf("Failed to list eligible pods: %v", err)
+		log.Fatalf("Failed to list PDB-safe pods: %v", err)
 	}
-	log.Printf(" Total Eligible pods: %+v", len(eligiblePods))
+	log.Printf("Total PDB-safe pods available for eviction: %d", len(pdbSafePods))
 
-	// If there are eligible pods, select one at random and evict it
-	if len(eligiblePods) > 0 {
-		podToEvict := killer.SelectRandomPod(eligiblePods)
-		log.Printf("Selected pod %s for eviction", podToEvict.Name)
+	// If there are PDB-safe pods, select one at random and evict it
+	if len(pdbSafePods) > 0 {
+		podToEvict := killer.SelectRandomPod(pdbSafePods)
+		log.Printf("✅ Selected pod %s for eviction (PDB-compliant)", podToEvict.Name)
 
 		// Evict the selected pod
 		err = killer.EvictPod(clientset, podToEvict, ctx)
@@ -113,7 +114,11 @@ func main() {
 			}
 		}
 	} else {
-		log.Println("No eligible pods found to evict")
+		log.Println("❌ No PDB-safe pods found for eviction")
+		log.Println("ℹ️  This could mean:")
+		log.Println("   - No pods match the label selector")
+		log.Println("   - All matching pods are protected by PodDisruptionBudgets")
+		log.Println("   - PDB constraints prevent any evictions at this time")
 	}
 
 }

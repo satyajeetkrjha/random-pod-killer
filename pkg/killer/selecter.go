@@ -2,6 +2,7 @@ package killer
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -27,6 +28,54 @@ func ListEligiblePods(clientset *kubernetes.Clientset, namespace string, labelSe
 	}
 	log.Printf("Found %d eligible pods in namespace %s with selector %s", len(runningPods), namespace, labelSelector)
 	return runningPods, nil
+}
+
+// ListPDBSafePods returns pods that can be safely evicted without violating PDBs
+func ListPDBSafePods(clientset *kubernetes.Clientset, namespace string, labelSelector string, ctx context.Context) ([]v1.Pod, error) {
+	// First get all eligible running pods
+	eligiblePods, err := ListEligiblePods(clientset, namespace, labelSelector, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(eligiblePods) == 0 {
+		log.Printf("No eligible pods found")
+		return eligiblePods, nil
+	}
+
+	// Get all PDBs in the namespace
+	pdbs, err := ListPDBs(clientset, namespace, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list PDBs - cannot proceed without PDB checks: %v", err)
+	}
+
+	if len(pdbs) == 0 {
+		log.Printf("No PDBs found in namespace %s - all eligible pods can be evicted", namespace)
+		return eligiblePods, nil
+	}
+
+	// Get all pods in namespace for PDB calculations
+	// We need all pods (not just eligible ones) because PDBs may protect pods
+	// that don't match our selector, and we need accurate counts for PDB math
+	allPodsResult, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all pods for PDB calculations: %v", err)
+	}
+	allPods := allPodsResult.Items
+
+	// Filter pods that can be safely evicted
+	var safePods []v1.Pod
+	for _, pod := range eligiblePods {
+		canEvict, reason := CanEvictPod(&pod, pdbs, allPods)
+		if canEvict {
+			safePods = append(safePods, pod)
+		} else {
+			log.Printf("🛡️  Pod %s cannot be evicted: %s", pod.Name, reason)
+		}
+	}
+
+	log.Printf("PDB-safe pods: %d out of %d eligible pods can be safely evicted", len(safePods), len(eligiblePods))
+	return safePods, nil
 }
 
 func SelectRandomPod(pods []v1.Pod) *v1.Pod {
